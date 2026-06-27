@@ -1,0 +1,16 @@
+{
+  "date": "2026-06-18",
+  "time": "16:00",
+  "type": "close",
+  "type_label": "updated",
+  "index": 26517.93,
+  "ma50": 25552.31,
+  "disparity": 103.78,
+  "change": 496.27,
+  "change_pct": 1.91,
+  "prev_disparity": 102.15,
+  "zone": "cooldown",
+  "zone_label": "과열 해소 (Panic Selling 자제)",
+  "note": "정규장 마감 종가 기준 확정값입니다. (미리보기 시드 데이터)",
+  "updated_at": "2026-06-18T16:00:00-04:00"
+}

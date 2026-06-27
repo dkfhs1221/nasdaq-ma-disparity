@@ -1,0 +1,92 @@
+name: 나스닥 50일 이격도 갱신
+
+on:
+  schedule:
+    # GitHub Actions cron 은 UTC 기준. 미국 정규장은 America/New_York 9:30~16:00.
+    # 아래는 서머타임(EDT, UTC-4) 기준 시각이며, 표준시(EST, UTC-4→UTC-5) 기간에는
+    # 실제 ET 로컬시각이 1시간씩 늦어진다(예: intraday가 13시경 실행됨). 필요시 시간 보정.
+    - cron: "7 16 * * 1-5"   # ≈ 12:07 ET(EDT) — 장중 1차
+    - cron: "20 16 * * 1-5"  # ≈ 12:20 ET(EDT) — 장중 백업
+    - cron: "10 20 * * 1-5"  # ≈ 16:10 ET(EDT) — 종가 1차 (마감 16:00 이후)
+    - cron: "25 20 * * 1-5"  # ≈ 16:25 ET(EDT) — 종가 백업
+    - cron: "40 20 * * 1-5"  # ≈ 16:40 ET(EDT) — 종가 백업2
+  repository_dispatch:
+    types: [intraday, close]
+  workflow_dispatch:
+    inputs:
+      type:
+        description: "갱신 유형"
+        type: choice
+        default: close
+        options: [close, intraday]
+      force:
+        description: "비거래일에도 강제 실행"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: disparity-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r scripts/requirements.txt
+
+      - name: Determine run type
+        id: cfg
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TYPE="${{ inputs.type }}"
+            FORCE="${{ inputs.force }}"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TYPE="${{ github.event.action }}"; FORCE="false"
+          else
+            # 스케줄 크론의 UTC '시(hour)'로 유형 결정.
+            #   16시대 → 장중(intraday), 20시대 → 종가(close)
+            H=$(echo "${{ github.event.schedule }}" | awk '{print $2}')
+            if [ "$H" -ge 18 ]; then TYPE="close"; else TYPE="intraday"; fi
+            FORCE="false"
+          fi
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+          echo "force=$FORCE" >> "$GITHUB_OUTPUT"
+          echo "선택된 유형: $TYPE (force=$FORCE)"
+
+      - name: Run update
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: |
+          ARGS="--type ${{ steps.cfg.outputs.type }}"
+          if [ "${{ steps.cfg.outputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          python scripts/run_update.py $ARGS
+
+      - name: Commit data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/history.json docs/data/latest.json
+          if git diff --staged --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "data: ${{ steps.cfg.outputs.type }} 이격도 갱신 ($(date -u +%Y-%m-%dT%H:%MZ))"
+            for i in 1 2 3 4; do
+              git push origin HEAD:${{ github.ref_name }} && break
+              echo "push 재시도 $i..."; sleep $((2**i))
+            done
+          fi
