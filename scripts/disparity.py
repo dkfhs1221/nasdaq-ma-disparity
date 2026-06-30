@@ -71,7 +71,9 @@ class DailyPoint:
     date: str       # YYYY-MM-DD
     close: float    # 종가
     ma50: Optional[float] = None
-    disparity: Optional[float] = None  # %
+    ma100: Optional[float] = None
+    ma200: Optional[float] = None
+    disparity: Optional[float] = None  # % (50일선 기준)
     zone: Optional[str] = None
     zone_label: Optional[str] = None
 
@@ -143,9 +145,13 @@ def fetch_history_yahoo(symbol: str, tz: ZoneInfo, rng: str = "2y") -> list[Dail
 
 
 def fetch_history(symbol: str, tz: ZoneInfo, days: int = 900) -> list[DailyPoint]:
-    """과거 일봉 수집(Yahoo Finance)."""
-    rng = "2y" if days <= 740 else "5y"
-    pts = fetch_history_yahoo(symbol, tz, rng=rng)
+    """과거 일봉 수집(Yahoo Finance).
+
+    range=max 는 오래된 구간을 일봉이 아닌 주/월봉으로 내려보내는 경우가 있어
+    50/100/200일 이동평균이 깨질 수 있다. interval=1d 가 안정적으로 보장되는
+    10y 범위를 사용한다(선물은 보통 10y 미만의 연속 데이터만 존재해 사실상 전체 기간).
+    """
+    pts = fetch_history_yahoo(symbol, tz, rng="10y")
     if len(pts) < MA_WINDOW:
         raise RuntimeError(f"yahoo 데이터 부족({len(pts)}개)")
     return pts
@@ -180,17 +186,28 @@ def fetch_live(symbol: str, reference_close: Optional[float] = None) -> float:
 # --------------------------------------------------------------------------
 # 이격도 계산
 # --------------------------------------------------------------------------
+def _sma(closes: list[float], i: int, window: int) -> Optional[float]:
+    if i + 1 < window:
+        return None
+    return sum(closes[i + 1 - window: i + 1]) / window
+
+
 def compute_history(points: list[DailyPoint]) -> list[DailyPoint]:
-    """일봉 리스트에 50일 이동평균/이격도/구간 채우기 (날짜 오름차순 입력 가정)."""
+    """일봉 리스트에 50/100/200일 이동평균·50일 이격도·구간 채우기 (날짜 오름차순 입력 가정)."""
     pts = sorted(points, key=lambda p: p.date)
     closes = [p.close for p in pts]
     for i, p in enumerate(pts):
-        if i + 1 >= MA_WINDOW:
-            window = closes[i + 1 - MA_WINDOW: i + 1]
-            ma = sum(window) / MA_WINDOW
-            disp = p.close / ma * 100.0
+        ma50 = _sma(closes, i, MA_WINDOW)
+        ma100 = _sma(closes, i, 100)
+        ma200 = _sma(closes, i, 200)
+        if ma100 is not None:
+            p.ma100 = round(ma100, 2)
+        if ma200 is not None:
+            p.ma200 = round(ma200, 2)
+        if ma50 is not None:
+            disp = p.close / ma50 * 100.0
             zone, label = classify(disp)
-            p.ma50 = round(ma, 2)
+            p.ma50 = round(ma50, 2)
             p.disparity = round(disp, 2)
             p.zone = zone
             p.zone_label = label
@@ -272,6 +289,8 @@ def history_to_records(history: list[DailyPoint]) -> list[dict]:
             "date": p.date,
             "close": round(p.close, 2),
             "ma50": p.ma50,
+            "ma100": p.ma100,
+            "ma200": p.ma200,
             "disparity": p.disparity,
             "zone": p.zone,
         })

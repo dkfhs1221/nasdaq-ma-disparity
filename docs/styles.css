@@ -4,6 +4,7 @@
   --overheat:#ef4444; --caution:#f59e0b; --normal:#22c55e; --cooldown:#3b82f6;
   --up:#ef4444; --down:#3b82f6;
   --tg:#229ED9;
+  --ma100:#f59e0b; --ma200:#a855f7;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}

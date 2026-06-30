@@ -170,7 +170,9 @@
         labels,
         datasets: [
           { label: meta.short, data: data.map((d) => d.close), borderColor: css("--txt"), borderWidth: 1.6, pointRadius: 0, tension: 0.1 },
-          { label: "50일 이평", data: data.map((d) => d.ma50), borderColor: css("--accent"), borderWidth: 1.6, pointRadius: 0, borderDash: [5, 4], tension: 0.1 },
+          { label: "50일 이평", data: data.map((d) => d.ma50), borderColor: css("--accent"), borderWidth: 1.6, pointRadius: 0, borderDash: [5, 4], tension: 0.1, spanGaps: true },
+          { label: "100일 이평", data: data.map((d) => d.ma100), borderColor: css("--ma100"), borderWidth: 1.4, pointRadius: 0, borderDash: [3, 3], tension: 0.1, spanGaps: true },
+          { label: "200일 이평", data: data.map((d) => d.ma200), borderColor: css("--ma200"), borderWidth: 1.4, pointRadius: 0, borderDash: [2, 2], tension: 0.1, spanGaps: true },
         ],
       },
       options: baseOpts(),
