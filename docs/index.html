@@ -83,25 +83,11 @@
   <!-- 게이지/구간 바 -->
   <section class="card gauge-card">
     <div class="gauge-wrap">
-      <div class="gauge-track">
-        <div class="seg cooldown"></div>
-        <div class="seg normal"></div>
-        <div class="seg caution"></div>
-        <div class="seg overheat"></div>
-      </div>
+      <div class="gauge-track" id="gaugeTrack"></div>
       <div class="marker" id="gaugeMarker" hidden><span class="mlabel" id="gaugeLabel"></span></div>
-      <div class="gauge-ticks">
-        <span class="tick" style="left:22.222%">105</span>
-        <span class="tick" style="left:55.556%">120</span>
-        <span class="tick" style="left:77.778%">130</span>
-      </div>
+      <div class="gauge-ticks" id="gaugeTicks"></div>
     </div>
-    <div class="gauge-legend">
-      <span class="lg cooldown"><i></i>과열해소 <b>≤105</b></span>
-      <span class="lg normal"><i></i>정상 <b>105–120</b></span>
-      <span class="lg caution"><i></i>경계 <b>120–130</b></span>
-      <span class="lg overheat"><i></i>과열 <b>≥130</b></span>
-    </div>
+    <div class="gauge-legend" id="gaugeLegend"></div>
   </section>
 
   <!-- 차트: 나스닥 vs 50일선 -->
@@ -136,7 +122,7 @@
         <button data-r="0">전체</button>
       </div>
     </div>
-    <div class="legend-hint legend-row">🔴 130 과열 · 🔵 105 과열해소</div>
+    <div class="legend-hint legend-row" id="dispLegendHint"></div>
     <div class="chart-box"><canvas id="dispChart"></canvas></div>
     <p class="chart-hint">🔍 핀치·휠로 확대 · 드래그로 이동 · 더블탭으로 초기화</p>
   </section>
@@ -144,14 +130,15 @@
   <!-- 이론 설명 -->
   <section class="card theory">
     <h2>50일 이격도 해석법</h2>
-    <p><b>이격도 = 현재가 ÷ 50일 이동평균 × 100.</b> 현재 지수가 최근 50거래일 평균 대비 얼마나 위/아래에 있는지를 나타냅니다. 원래 코스피용으로 고안된 이그전(이은택의 그림전략) 50일 이격도 임계값을 S&P500 선물·나스닥 선물에도 동일하게 응용했습니다.</p>
+    <p><b>이격도 = 현재가 ÷ 50일 이동평균 × 100.</b> 현재 지수가 최근 50거래일 평균 대비 얼마나 위/아래에 있는지를 나타냅니다. 원래 코스피용으로 고안된 이그전(이은택의 그림전략) 50일 이격도 개념을 S&P500 선물·나스닥 선물에도 응용하되, 임계값은 각 지수의 실제 변동성 분포에 맞게 재산정했습니다.</p>
     <ul class="theory-list">
-      <li><span class="tag overheat">≥ 130%</span> 과열권 진입 — 추격매수(Panic Buying) 자제</li>
-      <li><span class="tag caution">120–130%</span> 과열 경계 — 분할·속도조절 관심</li>
-      <li><span class="tag normal">105–120%</span> 정상 범위 — 추세 추종 유효</li>
-      <li><span class="tag cooldown">≤ 105%</span> 과열 해소 — 투매(Panic Selling) 자제, 이격조정 끝난 종목부터 매수 고려</li>
+      <li><span class="tag overheat" id="thOverheat">≥ 130%</span> 과열권 진입 — 추격매수(Panic Buying) 자제</li>
+      <li><span class="tag caution" id="thCaution">120–130%</span> 과열 경계 — 분할·속도조절 관심</li>
+      <li><span class="tag normal" id="thNormal">105–120%</span> 정상 범위 — 추세 추종 유효</li>
+      <li><span class="tag cooldown" id="thCooldown">≤ 105%</span> 과열 해소 — 투매(Panic Selling) 자제, 이격조정 끝난 종목부터 매수 고려</li>
     </ul>
-    <p class="muted">※ 원 이론 출처: <a href="https://blog.naver.com/egzion/224311644753" target="_blank" rel="noopener">이그전(이은택의 그림전략)</a>. 코스피 기준으로 고안된 지표를 S&P500·나스닥 선물에도 적용한 비공식 응용이며, 본 사이트는 정보 제공용이며 투자 권유가 아닙니다.</p>
+    <p class="muted" id="thNote"></p>
+    <p class="muted">※ 원 이론 출처: <a href="https://blog.naver.com/egzion/224311644753" target="_blank" rel="noopener">이그전(이은택의 그림전략)</a>. 코스피 기준으로 고안된 개념을 S&P500·나스닥 선물에 응용하되 임계값은 지수별로 재산정한 비공식 응용이며, 본 사이트는 정보 제공용이며 투자 권유가 아닙니다.</p>
   </section>
 
   <!-- 히스토리 테이블 -->

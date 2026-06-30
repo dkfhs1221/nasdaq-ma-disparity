@@ -9,10 +9,15 @@
   - 그 사이   : 정상 범위 (130 근접 시 경계)
 
 데이터 소스(무료 공개): Yahoo Finance 차트 API 단일 소스.
-지원 지수:
-  - sp500  : S&P500 선물(E-mini, ES=F)
-  - nasdaq : 나스닥 선물(E-mini Nasdaq-100, NQ=F)
-  - kospi  : 코스피종합지수(현물, ^KS11)
+지원 지수 및 임계값:
+  - kospi  : 코스피종합지수(현물, ^KS11)         과열≥130 / 경계≥120 / 해소≤105 (이그전 원안 그대로)
+  - sp500  : S&P500 선물(E-mini, ES=F)           과열≥106 / 경계≥103 / 해소≤97  (최근 10년 분포 기준 재산정)
+  - nasdaq : 나스닥 선물(E-mini Nasdaq-100, NQ=F) 과열≥108 / 경계≥104 / 해소≤96  (최근 10년 분포 기준 재산정)
+
+코스피는 변동성이 커서(과거 10년 일평균 표준편차 약 5.9%p) 130%/105%처럼 넓은 임계값이 유효하지만,
+S&P500·나스닥 선물은 변동성이 작아(표준편차 각각 약 3.8%p / 4.8%p) 같은 임계값을 적용하면
+과열권에 거의 도달하지 않아 신호로서 무의미해진다. 그래서 두 지수는 각자의 50일 이격도
+실측 분포(상위/하위 백분위수)를 바탕으로 임계값을 좁혀서 재산정했다.
 """
 from __future__ import annotations
 
@@ -27,14 +32,9 @@ import requests
 ET = ZoneInfo("America/New_York")
 KST = ZoneInfo("Asia/Seoul")
 
-# 임계값 (이그전 응용)
-OVERHEAT = 130.0   # 과열권 진입
-COOLDOWN = 105.0   # 과열 해소
-CAUTION = 120.0    # 과열 경계(관심) 구간 하단
-
 MA_WINDOW = 50      # 50일 이동평균
 
-# 지수 레지스트리: key -> 설정
+# 지수 레지스트리: key -> 설정. overheat/caution/cooldown은 지수별로 다르게 산정된 임계값(%).
 INDICES = {
     "sp500": {
         "symbol": "ES=F",
@@ -44,6 +44,11 @@ INDICES = {
         "close_time": "16:00",
         "intraday_time": "12:00",
         "utc_offset": "-04:00",
+        "overheat": 106.0,
+        "caution": 103.0,
+        "cooldown": 97.0,
+        "gauge_min": 90.0,
+        "gauge_max": 112.0,
     },
     "nasdaq": {
         "symbol": "NQ=F",
@@ -53,6 +58,11 @@ INDICES = {
         "close_time": "16:00",
         "intraday_time": "12:00",
         "utc_offset": "-04:00",
+        "overheat": 108.0,
+        "caution": 104.0,
+        "cooldown": 96.0,
+        "gauge_min": 88.0,
+        "gauge_max": 114.0,
     },
     "kospi": {
         "symbol": "^KS11",
@@ -62,6 +72,11 @@ INDICES = {
         "close_time": "15:40",
         "intraday_time": "12:00",
         "utc_offset": "+09:00",
+        "overheat": 130.0,
+        "caution": 120.0,
+        "cooldown": 105.0,
+        "gauge_min": 95.0,
+        "gauge_max": 140.0,
     },
 }
 
@@ -100,13 +115,14 @@ class Snapshot:
 # --------------------------------------------------------------------------
 # 구간 판정
 # --------------------------------------------------------------------------
-def classify(disparity: float) -> tuple[str, str]:
-    """이격도 → (zone key, 한글 라벨)."""
-    if disparity >= OVERHEAT:
+def classify(index_key: str, disparity: float) -> tuple[str, str]:
+    """이격도 → (zone key, 한글 라벨). 지수별 임계값(INDICES[index_key]) 기준."""
+    cfg = INDICES[index_key]
+    if disparity >= cfg["overheat"]:
         return "overheat", "과열권 (Panic Buying 자제)"
-    if disparity >= CAUTION:
+    if disparity >= cfg["caution"]:
         return "caution", "과열 경계 (관심)"
-    if disparity <= COOLDOWN:
+    if disparity <= cfg["cooldown"]:
         return "cooldown", "과열 해소 (Panic Selling 자제)"
     return "normal", "정상 범위"
 
@@ -192,7 +208,7 @@ def _sma(closes: list[float], i: int, window: int) -> Optional[float]:
     return sum(closes[i + 1 - window: i + 1]) / window
 
 
-def compute_history(points: list[DailyPoint]) -> list[DailyPoint]:
+def compute_history(index_key: str, points: list[DailyPoint]) -> list[DailyPoint]:
     """일봉 리스트에 50/100/200일 이동평균·50일 이격도·구간 채우기 (날짜 오름차순 입력 가정)."""
     pts = sorted(points, key=lambda p: p.date)
     closes = [p.close for p in pts]
@@ -206,7 +222,7 @@ def compute_history(points: list[DailyPoint]) -> list[DailyPoint]:
             p.ma200 = round(ma200, 2)
         if ma50 is not None:
             disp = p.close / ma50 * 100.0
-            zone, label = classify(disp)
+            zone, label = classify(index_key, disp)
             p.ma50 = round(ma50, 2)
             p.disparity = round(disp, 2)
             p.zone = zone
@@ -255,7 +271,7 @@ def build_snapshot(index_key: str, history: list[DailyPoint], run_type: str) -> 
         time_str = cfg["intraday_time"]
         note = "정규장 중 실시간(지연) 현재가 기준 추정치입니다(종가 확정 시 갱신)."
 
-    zone, zone_label = classify(disparity)
+    zone, zone_label = classify(index_key, disparity)
     change = round(index_val - prev_close, 2) if prev_close else None
     change_pct = round((index_val - prev_close) / prev_close * 100.0, 2) if prev_close else None
 

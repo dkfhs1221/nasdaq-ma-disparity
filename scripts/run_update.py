@@ -41,7 +41,7 @@ def update_one(index_key: str, run_type: str, force: bool, no_telegram: bool) ->
 
     print(f"[update:{index_key}] 과거 일봉 수집 중... ({cfg['symbol']})")
     raw = D.fetch_history(cfg["symbol"], cfg["tz"], days=900)
-    history = D.compute_history(raw)
+    history = D.compute_history(index_key, raw)
     print(f"[update:{index_key}] 일봉 {len(history)}개, 이격도 산출 {sum(1 for p in history if p.ma50)}개")
 
     latest_date = history[-1].date if history else None

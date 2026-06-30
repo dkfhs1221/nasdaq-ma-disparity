@@ -1,14 +1,11 @@
 (function () {
   "use strict";
 
-  const OVERHEAT = 130, COOLDOWN = 105, CAUTION = 120;
-  const GMIN = 95, GMAX = 140;
-
-  // 탭 순서: S&P500, 나스닥, 코스피
+  // 탭 순서: S&P500, 나스닥, 코스피. overheat/caution/cooldown은 지수별 실측 분포 기준 임계값(%).
   const INDICES = [
-    { key: "sp500", short: "S&P500", name: "S&P500 선물" },
-    { key: "nasdaq", short: "나스닥", name: "나스닥 선물" },
-    { key: "kospi", short: "코스피", name: "코스피종합지수" },
+    { key: "sp500", short: "S&P500", name: "S&P500 선물", overheat: 106, caution: 103, cooldown: 97, gmin: 90, gmax: 112 },
+    { key: "nasdaq", short: "나스닥", name: "나스닥 선물", overheat: 108, caution: 104, cooldown: 96, gmin: 88, gmax: 114 },
+    { key: "kospi", short: "코스피", name: "코스피종합지수", overheat: 130, caution: 120, cooldown: 105, gmin: 95, gmax: 140 },
   ];
 
   const TELEGRAM_URL = (window.SITE_CONFIG && window.SITE_CONFIG.telegramUrl) || "";
@@ -21,16 +18,17 @@
   const fmt = (n, d = 2) =>
     n == null || isNaN(n) ? "—" : Number(n).toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
-  function zoneOf(v) {
-    if (v >= OVERHEAT) return ["overheat", "과열권 (Panic Buying 자제)"];
-    if (v >= CAUTION) return ["caution", "과열 경계 (관심)"];
-    if (v <= COOLDOWN) return ["cooldown", "과열 해소 (Panic Selling 자제)"];
+  function zoneOf(meta, v) {
+    if (v >= meta.overheat) return ["overheat", "과열권 (Panic Buying 자제)"];
+    if (v >= meta.caution) return ["caution", "과열 경계 (관심)"];
+    if (v <= meta.cooldown) return ["cooldown", "과열 해소 (Panic Selling 자제)"];
     return ["normal", "정상 범위"];
   }
   const ZONE_SHORT = { overheat: "과열", caution: "경계", normal: "정상", cooldown: "과열해소" };
 
   let priceChart, dispChart, HISTORY = [];
   let currentKey = INDICES[0].key;
+  const currentMeta = () => INDICES.find((i) => i.key === currentKey);
 
   function buildTabs() {
     const box = $("indexTabs");
@@ -49,15 +47,49 @@
     });
   }
 
+  function renderGaugeShell() {
+    const meta = currentMeta();
+    const { gmin, gmax, cooldown, caution, overheat } = meta;
+    const total = gmax - gmin;
+    const pct = (v) => Math.max(0, Math.min(100, ((v - gmin) / total) * 100));
+
+    const segs = [
+      { cls: "cooldown", w: pct(cooldown) - pct(gmin) },
+      { cls: "normal", w: pct(caution) - pct(cooldown) },
+      { cls: "caution", w: pct(overheat) - pct(caution) },
+      { cls: "overheat", w: pct(gmax) - pct(overheat) },
+    ];
+    $("gaugeTrack").innerHTML = segs.map((s) => `<div class="seg ${s.cls}" style="flex:0 0 ${s.w}%"></div>`).join("");
+
+    $("gaugeTicks").innerHTML = [
+      { v: cooldown, l: pct(cooldown) },
+      { v: caution, l: pct(caution) },
+      { v: overheat, l: pct(overheat) },
+    ].map((t) => `<span class="tick" style="left:${t.l}%">${fmt(t.v, 0)}</span>`).join("");
+
+    $("gaugeLegend").innerHTML = `
+      <span class="lg cooldown"><i></i>과열해소 <b>≤${fmt(cooldown, 0)}</b></span>
+      <span class="lg normal"><i></i>정상 <b>${fmt(cooldown, 0)}–${fmt(caution, 0)}</b></span>
+      <span class="lg caution"><i></i>경계 <b>${fmt(caution, 0)}–${fmt(overheat, 0)}</b></span>
+      <span class="lg overheat"><i></i>과열 <b>≥${fmt(overheat, 0)}</b></span>`;
+
+    $("dispLegendHint").textContent = `🔴 ${fmt(overheat, 0)} 과열 · 🔵 ${fmt(cooldown, 0)} 과열해소`;
+
+    $("thOverheat").textContent = `≥ ${fmt(overheat, 0)}%`;
+    $("thCaution").textContent = `${fmt(caution, 0)}–${fmt(overheat, 0)}%`;
+    $("thNormal").textContent = `${fmt(cooldown, 0)}–${fmt(caution, 0)}%`;
+    $("thCooldown").textContent = `≤ ${fmt(cooldown, 0)}%`;
+    $("thNote").textContent = meta.key === "kospi"
+      ? "코스피는 이그전 원안의 임계값(과열 130% / 해소 105%)을 그대로 사용합니다."
+      : `${meta.short}는 최근 10년 50일 이격도 실측 분포(표준편차 기준)를 바탕으로 임계값을 재산정했습니다 — 코스피보다 변동성이 작아 더 좁은 범위를 사용합니다.`;
+  }
+
   async function loadIndex(key) {
     currentKey = key;
-    const meta = INDICES.find((i) => i.key === key);
-    document.querySelectorAll("[data-label-index]").forEach((el) => {
-      el.textContent = meta.short;
-    });
-    document.querySelectorAll("[data-label-name]").forEach((el) => {
-      el.textContent = meta.name;
-    });
+    const meta = currentMeta();
+    document.querySelectorAll("[data-label-index]").forEach((el) => { el.textContent = meta.short; });
+    document.querySelectorAll("[data-label-name]").forEach((el) => { el.textContent = meta.name; });
+    renderGaugeShell();
     emptyState();
     const [hist, latest] = await Promise.all([
       fetchJSON(`./data/${key}/history.json`),
@@ -116,7 +148,8 @@
 
   function renderHero(s) {
     if (!s || s.disparity == null) { emptyState(); return; }
-    const [zk] = zoneOf(s.disparity);
+    const meta = currentMeta();
+    const [zk] = zoneOf(meta, s.disparity);
 
     const badge = $("typeBadge");
     badge.textContent = "updated";
@@ -126,7 +159,7 @@
     $("dispBig").innerHTML = `${fmt(s.disparity, 1)}<span class="pct">%</span>`;
 
     const zl = $("zoneLabel");
-    zl.textContent = s.zone_label || zoneOf(s.disparity)[1];
+    zl.textContent = s.zone_label || zoneOf(meta, s.disparity)[1];
     zl.className = "zone z-" + (s.zone || zk);
 
     $("dispDelta").textContent = "";
@@ -148,7 +181,7 @@
     $("note").textContent = s.note || "";
 
     const m = $("gaugeMarker");
-    const pos = Math.max(0, Math.min(100, ((s.disparity - GMIN) / (GMAX - GMIN)) * 100));
+    const pos = Math.max(0, Math.min(100, ((s.disparity - meta.gmin) / (meta.gmax - meta.gmin)) * 100));
     m.style.left = pos + "%";
     m.hidden = false;
     $("gaugeLabel").textContent = `${fmt(s.disparity, 1)}%`;
@@ -161,7 +194,7 @@
   function buildPriceChart(n) {
     const data = slice(n);
     const labels = data.map((d) => d.date);
-    const meta = INDICES.find((i) => i.key === currentKey);
+    const meta = currentMeta();
     const ctx = $("priceChart");
     if (priceChart) priceChart.destroy();
     priceChart = new Chart(ctx, {
@@ -184,10 +217,11 @@
     const data = slice(n);
     const labels = data.map((d) => d.date);
     const vals = data.map((d) => d.disparity);
+    const meta = currentMeta();
     const ctx = $("dispChart");
     if (dispChart) dispChart.destroy();
 
-    const seg = (lo, hi, color) => ({
+    const seg = (hi, color) => ({
       label: "", data: labels.map(() => hi), fill: false, borderColor: color,
       borderWidth: 1, borderDash: [4, 4], pointRadius: 0,
     });
@@ -199,24 +233,27 @@
         datasets: [
           { label: "이격도", data: vals, borderColor: css("--caution"),
             borderWidth: 1.8, pointRadius: 0, tension: 0.15,
-            segment: { borderColor: (c) => segColor(c) }, fill: false },
-          seg(0, OVERHEAT, css("--overheat")),
-          seg(0, COOLDOWN, css("--cooldown")),
+            segment: { borderColor: (c) => segColor(meta, c) }, fill: false },
+          seg(meta.overheat, css("--overheat")),
+          seg(meta.cooldown, css("--cooldown")),
         ],
       },
       options: Object.assign(baseOpts(), {
         plugins: { legend: { display: false }, tooltip: tip(), zoom: zoomOpts() },
-        scales: scales({ suggestedMin: Math.min(100, Math.min(...vals) - 3), suggestedMax: Math.max(132, Math.max(...vals) + 3) }),
+        scales: scales({
+          suggestedMin: Math.min(meta.cooldown - 2, Math.min(...vals) - 3),
+          suggestedMax: Math.max(meta.overheat + 2, Math.max(...vals) + 3),
+        }),
       }),
     });
     ctx.ondblclick = () => dispChart.resetZoom();
   }
 
-  function segColor(ctx) {
+  function segColor(meta, ctx) {
     const v = ctx.p1.parsed.y;
-    if (v >= OVERHEAT) return css("--overheat");
-    if (v >= CAUTION) return css("--caution");
-    if (v <= COOLDOWN) return css("--cooldown");
+    if (v >= meta.overheat) return css("--overheat");
+    if (v >= meta.caution) return css("--caution");
+    if (v <= meta.cooldown) return css("--cooldown");
     return css("--normal");
   }
 
@@ -259,10 +296,11 @@
   }
 
   function renderTable() {
+    const meta = currentMeta();
     const tb = $("histTable").querySelector("tbody");
     const rows = HISTORY.slice(-30).reverse();
     tb.innerHTML = rows.map((d) => {
-      const [zk] = zoneOf(d.disparity);
+      const [zk] = zoneOf(meta, d.disparity);
       return `<tr>
         <td class="c-date">${d.date}</td>
         <td class="c-kospi">${fmt(d.close)}</td>

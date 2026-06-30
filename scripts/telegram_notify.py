@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import requests
 
-from disparity import Snapshot, zone_emoji, OVERHEAT, COOLDOWN, INDICES
+from disparity import Snapshot, zone_emoji, INDICES
 
 
 def _fmt_signed(v, suffix=""):
@@ -15,7 +15,8 @@ def _fmt_signed(v, suffix=""):
 
 
 def build_message(index_key: str, snap: Snapshot) -> str:
-    name = INDICES[index_key]["name"]
+    cfg = INDICES[index_key]
+    name = cfg["name"]
     emoji = zone_emoji(snap.zone)
     arrow = "▲" if (snap.change or 0) > 0 else ("▼" if (snap.change or 0) < 0 else "—")
 
@@ -40,17 +41,17 @@ def build_message(index_key: str, snap: Snapshot) -> str:
     ]
 
     if snap.zone == "overheat":
-        lines += ["", f"⚠️ 130% 이상 *과열권*. 추격매수(Panic Buying) 자제 구간."]
+        lines += ["", f"⚠️ {cfg['overheat']:.0f}% 이상 *과열권*. 추격매수(Panic Buying) 자제 구간."]
     elif snap.zone == "caution":
-        lines += ["", f"🟠 과열 *경계* 구간. 130% 근접 — 분할·속도조절 관심."]
+        lines += ["", f"🟠 과열 *경계* 구간. {cfg['overheat']:.0f}% 근접 — 분할·속도조절 관심."]
     elif snap.zone == "cooldown":
-        lines += ["", f"🔵 105% 이하 *과열 해소*. 투매(Panic Selling) 자제, 이격조정 끝난 업종부터 관심."]
+        lines += ["", f"🔵 {cfg['cooldown']:.0f}% 이하 *과열 해소*. 투매(Panic Selling) 자제, 이격조정 끝난 업종부터 관심."]
     else:
-        lines += ["", f"🟢 정상 범위(105~130%). 추세 추종 유효."]
+        lines += ["", f"🟢 정상 범위({cfg['cooldown']:.0f}~{cfg['overheat']:.0f}%). 추세 추종 유효."]
 
     lines += [
         "",
-        f"기준: 이그전(이은택의 그림전략) 응용 · 과열 ≥{OVERHEAT:.0f}% / 해소 ≤{COOLDOWN:.0f}%",
+        f"기준: 이그전(이은택의 그림전략) 응용 · 과열 ≥{cfg['overheat']:.0f}% / 해소 ≤{cfg['cooldown']:.0f}%",
         f"{snap.note}",
     ]
     return "\n".join(lines)
