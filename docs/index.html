@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>나스닥 50일 이격도 · 트래커</title>
-<meta name="description" content="이은택의 그림전략(이그전) 50일 이격도 이론을 나스닥종합지수(^IXIC)에 응용한 과열/과열해소 실시간 트래킹. 매 거래일 정규장 중·종가 갱신." />
-<meta property="og:title" content="나스닥 50일 이격도 · 트래커" />
-<meta property="og:description" content="나스닥종합지수 50일 이동평균 이격도 실시간 트래킹 (과열 ≥130% / 해소 ≤105%)" />
+<title>S&P500·나스닥·코스피 50일 이격도 · 트래커</title>
+<meta name="description" content="이은택의 그림전략(이그전) 50일 이격도 이론을 S&P500 선물·나스닥 선물·코스피종합지수에 응용한 과열/과열해소 실시간 트래킹. 매 거래일 정규장 중·종가 갱신." />
+<meta property="og:title" content="S&P500·나스닥·코스피 50일 이격도 · 트래커" />
+<meta property="og:description" content="50일 이동평균 이격도 실시간 트래킹 (과열 ≥130% / 해소 ≤105%)" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="stylesheet" href="./styles.css?v=20260620-1" />
 
@@ -35,14 +35,17 @@
     <div class="brand">
       <span class="logo">📊</span>
       <div>
-        <h1>나스닥 50일 이격도</h1>
-        <p class="sub">이그전(이은택의 그림전략) 응용 · 나스닥종합지수 과열 트래커</p>
+        <h1>50일 이격도 트래커</h1>
+        <p class="sub">이그전(이은택의 그림전략) 응용 · <span data-label-name>S&P500 선물</span> 과열 트래커</p>
       </div>
     </div>
     <a class="tg" id="tgLink" href="#" target="_blank" rel="noopener" hidden aria-label="텔레그램 채널 열기">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
       <span class="tg-text">Telegram</span>
     </a>
+  </div>
+  <div class="wrap">
+    <div class="index-tabs" id="indexTabs"></div>
   </div>
 </header>
 
@@ -61,7 +64,7 @@
     </div>
     <div class="hero-right">
       <div class="stat">
-        <span class="k">나스닥</span>
+        <span class="k" data-label-index>S&P500</span>
         <span class="v" id="kospiVal">—</span>
         <span class="chg" id="kospiChg"></span>
       </div>
@@ -104,7 +107,7 @@
   <!-- 차트: 나스닥 vs 50일선 -->
   <section class="card">
     <div class="card-head">
-      <h2>나스닥종합지수 & 50일 이동평균</h2>
+      <h2><span data-label-name>S&P500 선물</span> & 50일 이동평균</h2>
       <div class="range-btns" id="rangeBtns">
         <button data-r="60">3M</button>
         <button data-r="120">6M</button>
@@ -136,15 +139,15 @@
 
   <!-- 이론 설명 -->
   <section class="card theory">
-    <h2>50일 이격도 해석법 (나스닥 응용)</h2>
-    <p><b>이격도 = 현재가 ÷ 50일 이동평균 × 100.</b> 현재 지수가 최근 50거래일 평균 대비 얼마나 위/아래에 있는지를 나타냅니다. 원래 코스피용으로 고안된 이그전(이은택의 그림전략) 50일 이격도 임계값을 나스닥종합지수에 그대로 응용한 버전입니다.</p>
+    <h2>50일 이격도 해석법</h2>
+    <p><b>이격도 = 현재가 ÷ 50일 이동평균 × 100.</b> 현재 지수가 최근 50거래일 평균 대비 얼마나 위/아래에 있는지를 나타냅니다. 원래 코스피용으로 고안된 이그전(이은택의 그림전략) 50일 이격도 임계값을 S&P500 선물·나스닥 선물에도 동일하게 응용했습니다.</p>
     <ul class="theory-list">
       <li><span class="tag overheat">≥ 130%</span> 과열권 진입 — 추격매수(Panic Buying) 자제</li>
       <li><span class="tag caution">120–130%</span> 과열 경계 — 분할·속도조절 관심</li>
       <li><span class="tag normal">105–120%</span> 정상 범위 — 추세 추종 유효</li>
       <li><span class="tag cooldown">≤ 105%</span> 과열 해소 — 투매(Panic Selling) 자제, 이격조정 끝난 종목부터 매수 고려</li>
     </ul>
-    <p class="muted">※ 원 이론 출처: <a href="https://blog.naver.com/egzion/224311644753" target="_blank" rel="noopener">이그전(이은택의 그림전략)</a>. 코스피 기준으로 고안된 지표를 나스닥에 적용한 비공식 응용이며, 본 사이트는 정보 제공용이며 투자 권유가 아닙니다.</p>
+    <p class="muted">※ 원 이론 출처: <a href="https://blog.naver.com/egzion/224311644753" target="_blank" rel="noopener">이그전(이은택의 그림전략)</a>. 코스피 기준으로 고안된 지표를 S&P500·나스닥 선물에도 적용한 비공식 응용이며, 본 사이트는 정보 제공용이며 투자 권유가 아닙니다.</p>
   </section>
 
   <!-- 히스토리 테이블 -->
@@ -152,7 +155,7 @@
     <div class="card-head"><h2>최근 기록</h2></div>
     <div class="table-box">
       <table id="histTable">
-        <thead><tr><th>날짜</th><th>나스닥</th><th>50일선</th><th>이격도</th><th>구간</th></tr></thead>
+        <thead><tr><th>날짜</th><th data-label-index>S&P500</th><th>50일선</th><th>이격도</th><th>구간</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -161,7 +164,7 @@
 </main>
 
 <footer class="foot wrap">
-  <p>데이터: Yahoo Finance(^IXIC, 나스닥종합지수) · 갱신: 매 거래일 정규장 중 · 마감 후(미 동부시간 ET 기준)</p>
+  <p>데이터: Yahoo Finance (S&P500 선물 ES=F · 나스닥 선물 NQ=F · 코스피종합지수 ^KS11) · 갱신: 매 거래일 정규장 중 · 마감 후</p>
   <p class="muted">© 비공식 응용 트래커 · 이그전 이론 응용 · 투자 판단의 책임은 본인에게 있습니다.</p>
 </footer>
 
@@ -169,6 +172,6 @@
 <!-- 차트 줌/팬(모바일 핀치·드래그) -->
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="./app.js?v=20260620-1" defer></script>
+<script src="./app.js?v=20260630-1" defer></script>
 </body>
 </html>

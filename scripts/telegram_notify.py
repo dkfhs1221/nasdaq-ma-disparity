@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import requests
 
-from disparity import Snapshot, zone_emoji, OVERHEAT, COOLDOWN, INDEX_NAME
+from disparity import Snapshot, zone_emoji, OVERHEAT, COOLDOWN, INDICES
 
 
 def _fmt_signed(v, suffix=""):
@@ -14,7 +14,8 @@ def _fmt_signed(v, suffix=""):
     return f"{sign}{v:,.2f}{suffix}"
 
 
-def build_message(snap: Snapshot) -> str:
+def build_message(index_key: str, snap: Snapshot) -> str:
+    name = INDICES[index_key]["name"]
     emoji = zone_emoji(snap.zone)
     arrow = "▲" if (snap.change or 0) > 0 else ("▼" if (snap.change or 0) < 0 else "—")
 
@@ -28,12 +29,12 @@ def build_message(snap: Snapshot) -> str:
         disp_delta = f" ({_fmt_signed(d)}p)"
 
     lines = [
-        f"📊 *{INDEX_NAME} 50일 이격도* — {snap.type_label}",
-        f"🗓 {snap.date} {snap.time} ET",
+        f"📊 *{name} 50일 이격도* — {snap.type_label}",
+        f"🗓 {snap.date} {snap.time}",
         "",
         f"{emoji} *{snap.disparity:.1f}%*  ·  {snap.zone_label}{disp_delta}",
         "",
-        f"• {INDEX_NAME}: *{snap.index:,.2f}*  {change_line}",
+        f"• {name}: *{snap.index:,.2f}*  {change_line}",
         f"• 50일 이평: {snap.ma50:,.2f}",
         f"• 이격도 = 현재가 ÷ 50일선 × 100",
     ]
@@ -55,11 +56,11 @@ def build_message(snap: Snapshot) -> str:
     return "\n".join(lines)
 
 
-def send(snap: Snapshot, web_url: str | None = None) -> bool:
+def send(index_key: str, snap: Snapshot, web_url: str | None = None) -> bool:
     """텔레그램 채널로 broadcast. 토큰/챗ID 없으면 출력만 하고 False 반환."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    text = build_message(snap)
+    text = build_message(index_key, snap)
     if web_url:
         text += f"\n\n🔗 {web_url}"
 

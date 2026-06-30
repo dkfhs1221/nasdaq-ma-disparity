@@ -4,6 +4,13 @@
   const OVERHEAT = 130, COOLDOWN = 105, CAUTION = 120;
   const GMIN = 95, GMAX = 140;
 
+  // 탭 순서: S&P500, 나스닥, 코스피
+  const INDICES = [
+    { key: "sp500", short: "S&P500", name: "S&P500 선물" },
+    { key: "nasdaq", short: "나스닥", name: "나스닥 선물" },
+    { key: "kospi", short: "코스피", name: "코스피종합지수" },
+  ];
+
   const TELEGRAM_URL = (window.SITE_CONFIG && window.SITE_CONFIG.telegramUrl) || "";
 
   const track = (name, params) => {
@@ -23,17 +30,38 @@
   const ZONE_SHORT = { overheat: "과열", caution: "경계", normal: "정상", cooldown: "과열해소" };
 
   let priceChart, dispChart, HISTORY = [];
+  let currentKey = INDICES[0].key;
 
-  async function load() {
-    if (TELEGRAM_URL) {
-      const l = $("tgLink");
-      l.href = TELEGRAM_URL;
-      l.hidden = false;
-      l.addEventListener("click", () => track("telegram_click", { url: TELEGRAM_URL }));
-    }
+  function buildTabs() {
+    const box = $("indexTabs");
+    box.innerHTML = INDICES.map((idx, i) =>
+      `<button class="tab-btn${i === 0 ? " on" : ""}" data-key="${idx.key}">${idx.short}</button>`
+    ).join("");
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const key = b.dataset.key;
+      if (key === currentKey) return;
+      [...box.children].forEach((x) => x.classList.remove("on"));
+      b.classList.add("on");
+      track("tab_change", { index: key });
+      loadIndex(key);
+    });
+  }
+
+  async function loadIndex(key) {
+    currentKey = key;
+    const meta = INDICES.find((i) => i.key === key);
+    document.querySelectorAll("[data-label-index]").forEach((el) => {
+      el.textContent = meta.short;
+    });
+    document.querySelectorAll("[data-label-name]").forEach((el) => {
+      el.textContent = meta.name;
+    });
+    emptyState();
     const [hist, latest] = await Promise.all([
-      fetchJSON("./data/history.json"),
-      fetchJSON("./data/latest.json"),
+      fetchJSON(`./data/${key}/history.json`),
+      fetchJSON(`./data/${key}/latest.json`),
     ]);
     HISTORY = (hist || []).filter((d) => d && d.disparity != null);
     renderHero(latest);
@@ -44,9 +72,18 @@
       renderTable();
       wireRangeButtons("rangeBtns", (n) => buildPriceChart(n));
       wireRangeButtons("rangeBtnsDisp", (n) => buildDispChart(n));
-    } else {
-      emptyState();
     }
+  }
+
+  async function load() {
+    if (TELEGRAM_URL) {
+      const l = $("tgLink");
+      l.href = TELEGRAM_URL;
+      l.hidden = false;
+      l.addEventListener("click", () => track("telegram_click", { url: TELEGRAM_URL }));
+    }
+    buildTabs();
+    await loadIndex(currentKey);
   }
 
   function registerZoom() {
@@ -85,14 +122,14 @@
     badge.textContent = "updated";
     badge.className = "type-badge " + (s.type || "");
 
-    const refTime = s.type === "close" ? "16:00" : "12:00";
-    $("updatedAt").textContent = `${s.date} ${refTime} ET 기준`;
+    $("updatedAt").textContent = `${s.date} ${s.time} 기준`;
     $("dispBig").innerHTML = `${fmt(s.disparity, 1)}<span class="pct">%</span>`;
 
     const zl = $("zoneLabel");
     zl.textContent = s.zone_label || zoneOf(s.disparity)[1];
     zl.className = "zone z-" + (s.zone || zk);
 
+    $("dispDelta").textContent = "";
     if (s.prev_disparity != null) {
       const d = +(s.disparity - s.prev_disparity).toFixed(2);
       $("dispDelta").textContent = `직전 대비 ${d > 0 ? "+" : ""}${d}p`;
@@ -102,6 +139,7 @@
     $("ma50Val").textContent = fmt(s.ma50);
 
     const chg = $("kospiChg");
+    chg.textContent = "";
     if (s.change != null) {
       const up = s.change > 0, dn = s.change < 0;
       chg.textContent = `${up ? "▲" : dn ? "▼" : "—"} ${fmt(Math.abs(s.change))} (${s.change_pct > 0 ? "+" : ""}${fmt(s.change_pct)}%)`;
@@ -123,6 +161,7 @@
   function buildPriceChart(n) {
     const data = slice(n);
     const labels = data.map((d) => d.date);
+    const meta = INDICES.find((i) => i.key === currentKey);
     const ctx = $("priceChart");
     if (priceChart) priceChart.destroy();
     priceChart = new Chart(ctx, {
@@ -130,7 +169,7 @@
       data: {
         labels,
         datasets: [
-          { label: "나스닥종합지수", data: data.map((d) => d.close), borderColor: css("--txt"), borderWidth: 1.6, pointRadius: 0, tension: 0.1 },
+          { label: meta.short, data: data.map((d) => d.close), borderColor: css("--txt"), borderWidth: 1.6, pointRadius: 0, tension: 0.1 },
           { label: "50일 이평", data: data.map((d) => d.ma50), borderColor: css("--accent"), borderWidth: 1.6, pointRadius: 0, borderDash: [5, 4], tension: 0.1 },
         ],
       },

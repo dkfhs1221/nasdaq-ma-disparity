@@ -1,5 +1,5 @@
 """
-나스닥 종합지수 50일 이동평균선 이격도 계산 핵심 라이브러리 (이그전 - 이은택의 그림전략 이론 응용)
+주요 지수 50일 이동평균선 이격도 계산 핵심 라이브러리 (이그전 - 이은택의 그림전략 이론 응용)
 
 이격도 = 현재가 / 50일 이동평균 × 100
 
@@ -8,13 +8,16 @@
   - 105% 이하 : 과열 해소 진행 (Panic Selling 자제)
   - 그 사이   : 정상 범위 (130 근접 시 경계)
 
-데이터 소스(무료 공개):
-  - 과거 일봉 종가 / 장중 실시간 값 모두 Yahoo Finance 차트 API 사용
-    (나스닥은 KRX 같은 공식 무료 API가 없어 KOSPI 버전의 pykrx/Naver 폴링 대신 Yahoo 단일 소스로 통일)
+데이터 소스(무료 공개): Yahoo Finance 차트 API 단일 소스.
+지원 지수:
+  - sp500  : S&P500 선물(E-mini, ES=F)
+  - nasdaq : 나스닥 선물(E-mini Nasdaq-100, NQ=F)
+  - kospi  : 코스피종합지수(현물, ^KS11)
 """
 from __future__ import annotations
 
 import datetime as dt
+import urllib.parse
 from dataclasses import dataclass, asdict
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -22,6 +25,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 ET = ZoneInfo("America/New_York")
+KST = ZoneInfo("Asia/Seoul")
 
 # 임계값 (이그전 응용)
 OVERHEAT = 130.0   # 과열권 진입
@@ -30,9 +34,36 @@ CAUTION = 120.0    # 과열 경계(관심) 구간 하단
 
 MA_WINDOW = 50      # 50일 이동평균
 
-# ^IXIC = 나스닥 종합지수(Nasdaq Composite). 나스닥100을 쓰려면 "%5ENDX"로 변경.
-YAHOO_SYMBOL = "%5EIXIC"
-INDEX_NAME = "나스닥종합지수"
+# 지수 레지스트리: key -> 설정
+INDICES = {
+    "sp500": {
+        "symbol": "ES=F",
+        "name": "S&P500 선물",
+        "short": "S&P500",
+        "tz": ET,
+        "close_time": "16:00",
+        "intraday_time": "12:00",
+        "utc_offset": "-04:00",
+    },
+    "nasdaq": {
+        "symbol": "NQ=F",
+        "name": "나스닥 선물",
+        "short": "나스닥",
+        "tz": ET,
+        "close_time": "16:00",
+        "intraday_time": "12:00",
+        "utc_offset": "-04:00",
+    },
+    "kospi": {
+        "symbol": "^KS11",
+        "name": "코스피종합지수",
+        "short": "코스피",
+        "tz": KST,
+        "close_time": "15:40",
+        "intraday_time": "12:00",
+        "utc_offset": "+09:00",
+    },
+}
 
 
 @dataclass
@@ -48,8 +79,8 @@ class DailyPoint:
 @dataclass
 class Snapshot:
     """최신 상태(장중 속보 또는 종가 확정)."""
-    date: str            # YYYY-MM-DD (ET)
-    time: str            # HH:MM (ET)
+    date: str            # YYYY-MM-DD (지수별 거래소 시간대)
+    time: str            # HH:MM
     type: str            # "intraday" | "close"
     type_label: str      # "장중 속보" | "종가 확정"
     index: float
@@ -61,7 +92,7 @@ class Snapshot:
     zone: str
     zone_label: str
     note: str
-    updated_at: str      # ISO8601 (ET)
+    updated_at: str      # ISO8601
 
 
 # --------------------------------------------------------------------------
@@ -90,10 +121,11 @@ def zone_emoji(zone: str) -> str:
 # --------------------------------------------------------------------------
 # 데이터 수집 - 과거 일봉 (Yahoo Finance)
 # --------------------------------------------------------------------------
-def fetch_history_yahoo(rng: str = "2y") -> list[DailyPoint]:
-    """Yahoo Finance 차트 API로 나스닥 종합지수 일봉 종가 수집."""
+def fetch_history_yahoo(symbol: str, tz: ZoneInfo, rng: str = "2y") -> list[DailyPoint]:
+    """Yahoo Finance 차트 API로 일봉 종가 수집."""
+    enc = urllib.parse.quote(symbol, safe="")
     url = (
-        f"https://query1.finance.yahoo.com/v8/finance/chart/{YAHOO_SYMBOL}"
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{enc}"
         f"?range={rng}&interval=1d"
     )
     r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
@@ -105,15 +137,15 @@ def fetch_history_yahoo(rng: str = "2y") -> list[DailyPoint]:
     for t, c in zip(ts, closes):
         if c is None:
             continue
-        d = dt.datetime.fromtimestamp(t, ET).date()
+        d = dt.datetime.fromtimestamp(t, tz).date()
         points.append(DailyPoint(date=d.strftime("%Y-%m-%d"), close=float(c)))
     return points
 
 
-def fetch_history(days: int = 900) -> list[DailyPoint]:
+def fetch_history(symbol: str, tz: ZoneInfo, days: int = 900) -> list[DailyPoint]:
     """과거 일봉 수집(Yahoo Finance)."""
     rng = "2y" if days <= 740 else "5y"
-    pts = fetch_history_yahoo(rng=rng)
+    pts = fetch_history_yahoo(symbol, tz, rng=rng)
     if len(pts) < MA_WINDOW:
         raise RuntimeError(f"yahoo 데이터 부족({len(pts)}개)")
     return pts
@@ -122,10 +154,11 @@ def fetch_history(days: int = 900) -> list[DailyPoint]:
 # --------------------------------------------------------------------------
 # 데이터 수집 - 실시간(장중) 현재가
 # --------------------------------------------------------------------------
-def fetch_live_yahoo() -> float:
+def fetch_live_yahoo(symbol: str) -> float:
     """Yahoo Finance 실시간(지연) 현재가."""
+    enc = urllib.parse.quote(symbol, safe="")
     url = (
-        f"https://query1.finance.yahoo.com/v8/finance/chart/{YAHOO_SYMBOL}"
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{enc}"
         f"?range=1d&interval=1m"
     )
     r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
@@ -134,9 +167,9 @@ def fetch_live_yahoo() -> float:
     return float(meta["regularMarketPrice"])
 
 
-def fetch_live(reference_close: Optional[float] = None) -> float:
+def fetch_live(symbol: str, reference_close: Optional[float] = None) -> float:
     """실시간 현재가(Yahoo). 참조 종가 대비 ±30% 넘는 이상치는 거부."""
-    v = fetch_live_yahoo()
+    v = fetch_live_yahoo(symbol)
     if v <= 0:
         raise RuntimeError("실시간 현재가 수집 실패")
     if reference_close and abs(v - reference_close) / reference_close > 0.3:
@@ -164,15 +197,17 @@ def compute_history(points: list[DailyPoint]) -> list[DailyPoint]:
     return pts
 
 
-def build_snapshot(history: list[DailyPoint], run_type: str) -> Snapshot:
+def build_snapshot(index_key: str, history: list[DailyPoint], run_type: str) -> Snapshot:
     """
     history: 50일 이평/이격도까지 계산된 일봉(오름차순).
-    run_type: "intraday"(정규장 중) | "close"(종가 확정, 16:00 ET 이후)
+    run_type: "intraday"(정규장 중) | "close"(종가 확정)
 
     - intraday: 마지막 '확정 종가'들로 MA50 산출, 분자는 실시간 현재가.
     - close   : history 마지막 점(오늘 확정 종가)을 그대로 사용.
     """
-    now = dt.datetime.now(ET)
+    cfg = INDICES[index_key]
+    tz = cfg["tz"]
+    now = dt.datetime.now(tz)
     hist = [p for p in history if p.ma50 is not None]
     if len(hist) < 1:
         raise RuntimeError("이격도 계산에 충분한 데이터가 없습니다(50거래일 필요).")
@@ -188,19 +223,19 @@ def build_snapshot(history: list[DailyPoint], run_type: str) -> Snapshot:
         prev_disp = prev.disparity if prev else None
         type_label = "updated"
         date_str = last.date
-        time_str = "16:00"
+        time_str = cfg["close_time"]
         note = "정규장 마감 종가 기준 확정값입니다."
     else:  # intraday
         closes = [p.close for p in sorted(history, key=lambda p: p.date)]
         ma50 = round(sum(closes[-MA_WINDOW:]) / MA_WINDOW, 2)
-        live = fetch_live(reference_close=last.close)
+        live = fetch_live(cfg["symbol"], reference_close=last.close)
         index_val = round(live, 2)
         disparity = round(index_val / ma50 * 100.0, 2)
         prev_close = last.close
         prev_disp = last.disparity
         type_label = "updated"
         date_str = now.strftime("%Y-%m-%d")
-        time_str = "12:00"
+        time_str = cfg["intraday_time"]
         note = "정규장 중 실시간(지연) 현재가 기준 추정치입니다(종가 확정 시 갱신)."
 
     zone, zone_label = classify(disparity)
@@ -221,7 +256,7 @@ def build_snapshot(history: list[DailyPoint], run_type: str) -> Snapshot:
         zone=zone,
         zone_label=zone_label,
         note=note,
-        updated_at=f"{date_str}T{time_str}:00-04:00",
+        updated_at=f"{date_str}T{time_str}:00{cfg['utc_offset']}",
     )
 
 
@@ -241,9 +276,3 @@ def history_to_records(history: list[DailyPoint]) -> list[dict]:
             "zone": p.zone,
         })
     return out
-
-
-def is_trading_today(history: list[DailyPoint]) -> bool:
-    """history의 마지막 종가 날짜가 오늘(ET)인지."""
-    today = dt.datetime.now(ET).strftime("%Y-%m-%d")
-    return bool(history) and history[-1].date == today
