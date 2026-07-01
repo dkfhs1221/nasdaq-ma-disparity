@@ -3,8 +3,8 @@
 
   // 탭 순서: S&P500, 나스닥, 코스피. overheat/caution/cooldown은 지수별 실측 분포 기준 임계값(%).
   const INDICES = [
-    { key: "sp500", short: "S&P500", name: "S&P500 선물", overheat: 106, caution: 103, cooldown: 97, gmin: 90, gmax: 112 },
-    { key: "nasdaq", short: "나스닥", name: "나스닥 선물", overheat: 108, caution: 104, cooldown: 96, gmin: 88, gmax: 114 },
+    { key: "sp500", short: "S&P500", name: "S&P500 선물", overheat: 110, caution: 105, cooldown: 95, gmin: 88, gmax: 116 },
+    { key: "nasdaq", short: "나스닥", name: "나스닥 선물", overheat: 110, caution: 105, cooldown: 95, gmin: 88, gmax: 116 },
     { key: "kospi", short: "코스피", name: "코스피종합지수", overheat: 130, caution: 120, cooldown: 105, gmin: 95, gmax: 140 },
   ];
 
@@ -89,6 +89,7 @@
     const meta = currentMeta();
     document.querySelectorAll("[data-label-index]").forEach((el) => { el.textContent = meta.short; });
     document.querySelectorAll("[data-label-name]").forEach((el) => { el.textContent = meta.name; });
+    document.documentElement.style.setProperty("--index-label", `"${meta.short} "`);
     renderGaugeShell();
     emptyState();
     const [hist, latest] = await Promise.all([

@@ -159,7 +159,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
   #histTable .c-kospi{grid-area:kospi}
   #histTable .c-ma50{grid-area:ma50;justify-self:end;text-align:right}
   #histTable .c-kospi,#histTable .c-ma50{font-size:11.5px;color:var(--muted);margin-top:2px}
-  #histTable .c-kospi::before{content:"나스닥 ";opacity:.65}
+  #histTable .c-kospi::before{content:var(--index-label,"");opacity:.65}
   #histTable .c-ma50::before{content:"50일선 ";opacity:.65}
 
   .theory{padding:16px}
