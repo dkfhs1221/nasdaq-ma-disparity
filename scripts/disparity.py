@@ -297,11 +297,11 @@ def build_snapshot(index_key: str, history: list[DailyPoint], run_type: str) -> 
 # 직렬화 헬퍼
 # --------------------------------------------------------------------------
 def history_to_records(history: list[DailyPoint]) -> list[dict]:
-    out = []
+    seen: dict[str, dict] = {}
     for p in history:
         if p.ma50 is None:
             continue
-        out.append({
+        seen[p.date] = {
             "date": p.date,
             "close": round(p.close, 2),
             "ma50": p.ma50,
@@ -309,5 +309,5 @@ def history_to_records(history: list[DailyPoint]) -> list[dict]:
             "ma200": p.ma200,
             "disparity": p.disparity,
             "zone": p.zone,
-        })
-    return out
+        }
+    return list(seen.values())
