@@ -1,16 +1,16 @@
 {
-  "date": "2026-06-30",
+  "date": "2026-07-01",
   "time": "16:00",
   "type": "close",
   "type_label": "updated",
-  "index": 30113.75,
-  "ma50": 29127.31,
-  "disparity": 103.39,
-  "change": 61,
-  "change_pct": 0.2,
-  "prev_disparity": 103.41,
+  "index": 30171.25,
+  "ma50": 29273.15,
+  "disparity": 103.07,
+  "change": 77.0,
+  "change_pct": 0.26,
+  "prev_disparity": 103.05,
   "zone": "normal",
   "zone_label": "정상 범위",
-  "note": "정규장 마감 종가 기준 확정값입니다. (미리보기 시드 데이터)",
-  "updated_at": "2026-06-30T16:00:00-04:00"
+  "note": "정규장 마감 종가 기준 확정값입니다.",
+  "updated_at": "2026-07-01T16:00:00-04:00"
 }
