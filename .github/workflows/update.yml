@@ -5,6 +5,8 @@ on:
     # GitHub Actions cron 은 UTC 기준. 미국 정규장은 America/New_York 9:30~16:00.
     # 아래는 서머타임(EDT, UTC-4) 기준 시각이며, 표준시(EST, UTC-4→UTC-5) 기간에는
     # 실제 ET 로컬시각이 1시간씩 늦어진다(예: intraday가 13시경 실행됨). 필요시 시간 보정.
+    - cron: "0 8 * * 1-5"    # 08:00 UTC = 17:00 KST — 코스피 종가 확정 (마감 15:40 KST)
+    - cron: "15 8 * * 1-5"   # 08:15 UTC = 17:15 KST — 코스피 종가 백업
     - cron: "7 16 * * 1-5"   # ≈ 12:07 ET(EDT) — 장중 1차
     - cron: "20 16 * * 1-5"  # ≈ 12:20 ET(EDT) — 장중 백업
     - cron: "10 20 * * 1-5"  # ≈ 16:10 ET(EDT) — 종가 1차 (마감 16:00 이후)
@@ -50,6 +52,7 @@ jobs:
       - name: Determine run type
         id: cfg
         run: |
+          ONLY=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TYPE="${{ inputs.type }}"
             FORCE="${{ inputs.force }}"
@@ -57,14 +60,19 @@ jobs:
             TYPE="${{ github.event.action }}"; FORCE="false"
           else
             # 스케줄 크론의 UTC '시(hour)'로 유형 결정.
-            #   16시대 → 장중(intraday), 20시대 → 종가(close)
+            #   8시대  → 코스피 종가 전용(close, --only kospi)
+            #   16시대 → 장중(intraday, 전체)
+            #   20시대 → 미국 종가(close, 전체)
             H=$(echo "${{ github.event.schedule }}" | awk '{print $2}')
-            if [ "$H" -ge 18 ]; then TYPE="close"; else TYPE="intraday"; fi
+            if [ "$H" -eq 8 ]; then TYPE="close"; ONLY="kospi";
+            elif [ "$H" -ge 18 ]; then TYPE="close"; ONLY="";
+            else TYPE="intraday"; ONLY=""; fi
             FORCE="false"
           fi
           echo "type=$TYPE" >> "$GITHUB_OUTPUT"
           echo "force=$FORCE" >> "$GITHUB_OUTPUT"
-          echo "선택된 유형: $TYPE (force=$FORCE)"
+          echo "only=${ONLY:-}" >> "$GITHUB_OUTPUT"
+          echo "선택된 유형: $TYPE (force=$FORCE, only=${ONLY:-all})"
 
       - name: Run update
         env:
@@ -74,6 +82,7 @@ jobs:
         run: |
           ARGS="--type ${{ steps.cfg.outputs.type }}"
           if [ "${{ steps.cfg.outputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ -n "${{ steps.cfg.outputs.only }}" ]; then ARGS="$ARGS --only ${{ steps.cfg.outputs.only }}"; fi
           python scripts/run_update.py $ARGS
 
       - name: Commit data
