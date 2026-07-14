@@ -8,6 +8,6 @@
  *                     예) "G-XXXXXXXXXX"               (비우면 추적 비활성)
  */
 window.SITE_CONFIG = {
-  telegramUrl: "",
+  telegramUrl: "https://telegram.me/+3ccc72DGC6E5MDU9",
   gaMeasurementId: "",
 };
