@@ -87,6 +87,14 @@ def update_one(index_key: str, run_type: str, force: bool, no_telegram: bool) ->
                   f"({pt_} {pd_})을 덮어쓰지 않음 — latest.json 갱신/알림 생략.")
             return
 
+    # 같은 날짜·같은 유형으로 이미 전송한 경우 텔레그램만 생략
+    already_sent = (
+        prev_latest
+        and not force
+        and prev_latest.get("date") == snap.date
+        and prev_latest.get("type") == snap.type
+    )
+
     latest_path.write_text(
         json.dumps(asdict(snap), ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -96,6 +104,8 @@ def update_one(index_key: str, run_type: str, force: bool, no_telegram: bool) ->
 
     if no_telegram:
         print(f"[update:{index_key}] --no-telegram: 전송 생략")
+    elif already_sent:
+        print(f"[update:{index_key}] 오늘({snap.date}) {snap.type} 알림 이미 전송됨 — 중복 전송 생략")
     else:
         try:
             telegram_notify.send(index_key, snap, web_url=WEB_URL or None)
