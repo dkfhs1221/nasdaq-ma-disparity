@@ -1,16 +1,16 @@
 {
-  "date": "2026-07-30",
-  "time": "16:00",
-  "type": "close",
+  "date": "2026-07-31",
+  "time": "12:00",
+  "type": "intraday",
   "type_label": "updated",
-  "index": 7474.5,
-  "ma50": 7501.23,
-  "disparity": 99.64,
-  "change": 123.25,
-  "change_pct": 1.68,
-  "prev_disparity": 98.01,
+  "index": 7514.25,
+  "ma50": 7503.92,
+  "disparity": 100.14,
+  "change": 0.0,
+  "change_pct": 0.0,
+  "prev_disparity": 100.14,
   "zone": "normal",
   "zone_label": "정상 범위",
-  "note": "정규장 마감 종가 기준 확정값입니다.",
-  "updated_at": "2026-07-30T16:00:00-04:00"
+  "note": "정규장 중 실시간(지연) 현재가 기준 추정치입니다(종가 확정 시 갱신).",
+  "updated_at": "2026-07-31T12:00:00-04:00"
 }
