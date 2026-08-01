@@ -102,8 +102,13 @@ def update_one(index_key: str, run_type: str, force: bool, no_telegram: bool) ->
     print(f"[update:{index_key}] latest.json 저장: {snap.type_label} "
           f"이격도 {snap.disparity:.2f}% ({snap.zone_label})")
 
+    # 미국 지수(sp500/nasdaq)는 장중 알림 생략 — 종가(close)만 전송
+    us_intraday = (index_key in ("sp500", "nasdaq") and snap.type == "intraday")
+
     if no_telegram:
         print(f"[update:{index_key}] --no-telegram: 전송 생략")
+    elif us_intraday:
+        print(f"[update:{index_key}] 미국 지수 장중 알림 생략 (종가 시간에만 전송)")
     elif already_sent:
         print(f"[update:{index_key}] 오늘({snap.date}) {snap.type} 알림 이미 전송됨 — 중복 전송 생략")
     else:
