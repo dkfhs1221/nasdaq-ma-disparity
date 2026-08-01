@@ -5,13 +5,9 @@ on:
     # GitHub Actions cron 은 UTC 기준. 미국 정규장은 America/New_York 9:30~16:00.
     # 아래는 서머타임(EDT, UTC-4) 기준 시각이며, 표준시(EST, UTC-4→UTC-5) 기간에는
     # 실제 ET 로컬시각이 1시간씩 늦어진다(예: intraday가 13시경 실행됨). 필요시 시간 보정.
-    - cron: "0 8 * * 1-5"    # 08:00 UTC = 17:00 KST — 코스피 종가 확정 (마감 15:40 KST)
-    - cron: "15 8 * * 1-5"   # 08:15 UTC = 17:15 KST — 코스피 종가 백업
-    - cron: "7 16 * * 1-5"   # ≈ 12:07 ET(EDT) — 장중 1차
-    - cron: "20 16 * * 1-5"  # ≈ 12:20 ET(EDT) — 장중 백업
-    - cron: "10 20 * * 1-5"  # ≈ 16:10 ET(EDT) — 종가 1차 (마감 16:00 이후)
-    - cron: "25 20 * * 1-5"  # ≈ 16:25 ET(EDT) — 종가 백업
-    - cron: "40 20 * * 1-5"  # ≈ 16:40 ET(EDT) — 종가 백업2
+    - cron: "0 8 * * 1-5"    # 08:00 UTC = 17:00 KST — 코스피 종가 (마감 15:40 KST)
+    - cron: "20 16 * * 1-5"  # 16:20 UTC ≈ 12:20 ET(EDT) — 장중 데이터 수집 (알림 없음)
+    - cron: "20 20 * * 1-5"  # 20:20 UTC ≈ 16:20 ET(EDT) — S&P500·나스닥 종가
   repository_dispatch:
     types: [intraday, close]
   workflow_dispatch:
