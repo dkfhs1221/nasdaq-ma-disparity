@@ -1,16 +1,16 @@
 {
-  "date": "2026-08-05",
+  "date": "2026-08-06",
   "time": "15:40",
   "type": "close",
   "type_label": "updated",
-  "index": 6598.26,
-  "ma50": 7680.18,
-  "disparity": 85.91,
-  "change": 239.31,
-  "change_pct": 3.76,
-  "prev_disparity": 82.53,
+  "index": 6296.38,
+  "ma50": 7645.16,
+  "disparity": 82.36,
+  "change": -301.88,
+  "change_pct": -4.58,
+  "prev_disparity": 85.91,
   "zone": "cooldown",
   "zone_label": "과열 해소 (Panic Selling 자제)",
   "note": "정규장 마감 종가 기준 확정값입니다.",
-  "updated_at": "2026-08-05T15:40:00+09:00"
+  "updated_at": "2026-08-06T15:40:00+09:00"
 }
