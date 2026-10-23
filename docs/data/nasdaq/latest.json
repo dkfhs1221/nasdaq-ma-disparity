@@ -1,16 +1,16 @@
 {
   "date": "2026-10-23",
-  "time": "12:00",
-  "type": "intraday",
+  "time": "16:00",
+  "type": "close",
   "type_label": "updated",
-  "index": 29124.0,
-  "ma50": 29974.73,
-  "disparity": 97.16,
-  "change": -2.0,
-  "change_pct": -0.01,
-  "prev_disparity": 97.17,
+  "index": 29175.0,
+  "ma50": 29975.71,
+  "disparity": 97.33,
+  "change": 33.0,
+  "change_pct": 0.11,
+  "prev_disparity": 97.15,
   "zone": "normal",
   "zone_label": "정상 범위",
-  "note": "정규장 중 실시간(지연) 현재가 기준 추정치입니다(종가 확정 시 갱신).",
-  "updated_at": "2026-10-23T12:00:00-04:00"
+  "note": "정규장 마감 종가 기준 확정값입니다.",
+  "updated_at": "2026-10-23T16:00:00-04:00"
 }
