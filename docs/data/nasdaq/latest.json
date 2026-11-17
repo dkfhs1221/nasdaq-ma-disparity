@@ -1,16 +1,16 @@
 {
-  "date": "2026-11-16",
-  "time": "16:00",
-  "type": "close",
+  "date": "2026-11-17",
+  "time": "12:00",
+  "type": "intraday",
   "type_label": "updated",
-  "index": 27419.75,
-  "ma50": 29625.06,
-  "disparity": 92.56,
-  "change": -615.0,
-  "change_pct": -2.19,
-  "prev_disparity": 94.49,
+  "index": 27469.5,
+  "ma50": 29580.97,
+  "disparity": 92.86,
+  "change": 0.0,
+  "change_pct": 0.0,
+  "prev_disparity": 92.86,
   "zone": "cooldown",
   "zone_label": "과열 해소 (Panic Selling 자제)",
-  "note": "정규장 마감 종가 기준 확정값입니다.",
-  "updated_at": "2026-11-16T16:00:00-04:00"
+  "note": "정규장 중 실시간(지연) 현재가 기준 추정치입니다(종가 확정 시 갱신).",
+  "updated_at": "2026-11-17T12:00:00-04:00"
 }
